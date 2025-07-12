@@ -1,0 +1,52 @@
+
+const parseAIResponse = (response) => {
+  let cleanResp = response.trim();
+
+  // If response is JSON, convert to HTML list
+  if (cleanResp.startsWith('{') || cleanResp.startsWith('[')) {
+    try {
+      const jsonData = JSON.parse(cleanResp);
+      let bullets = [];
+      if (Array.isArray(jsonData)) {
+        bullets = jsonData;
+      } else if (Array.isArray(jsonData.experience)) {
+        bullets = jsonData.experience;
+      } else if (typeof jsonData.bullet_points === 'string') {
+        // If bullet_points is a single string, split by punctuation
+        bullets = jsonData.bullet_points.split(/[\n,\.]+/).map(s => s.trim()).filter(Boolean);
+      }
+      cleanResp = `<ul>${bullets.map(bullet => `<li>${bullet}</li>`).join('')}</ul>`;
+    } catch (e) {
+      // Fallback: treat as plain text
+      const lines = cleanResp.split('\n').filter(Boolean);
+      cleanResp = `<ul>${lines.map(line => `<li>${line.replace(/^[-*]\s*/, '')}</li>`).join('')}</ul>`;
+    }
+  } else if (!cleanResp.startsWith('<ul>')) {
+    // Fallback for non-JSON, non-HTML responses
+    const lines = cleanResp.split('\n').filter(Boolean);
+    cleanResp = `<ul>${lines.map(line => `<li>${line.replace(/^[-*]\s*/, '')}</li>`).join('')}</ul>`;
+  }
+
+  return cleanResp;
+};
+
+const GenerateSummeryFromAI = async () => {
+  if (!resumeInfo?.Experience?.[index]?.title) {
+    toast('Please Add Position Title');
+    return;
+  }
+  setLoading(true);
+  const prompt = PROMPT.replace('{positionTitle}', resumeInfo.Experience[index].title);
+
+  try {
+    const result = await AIChatSession.sendMessage(prompt);
+    let resp = await result.response.text();
+    const cleanResp = parseAIResponse(resp);
+
+    setValue(cleanResp);
+    onRichTextEditorChange(cleanResp, 'workSummery', index);
+  } catch (err) {
+    toast.error('AI generation failed');
+  }
+  setLoading(false);
+};
